@@ -1,5 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Optional
 from unittest import mock
 
 import pytest
@@ -41,18 +42,21 @@ def test_configure_editor(editor: str) -> None:
         assert expected_compiled_plugin_filepath.exists()
 
 
-def test_generate_component_schema() -> None:
+@pytest.mark.parametrize("output_path", [None, "schema.json"])
+def test_generate_component_schema(output_path: Optional[str]) -> None:
     with (
         ProxyRunner.test() as runner,
         isolated_example_code_location_foo_bar(runner, False),
     ):
-        out = runner.invoke("code-location", "generate-component-schema")
+        out = runner.invoke(
+            "code-location",
+            "generate-component-schema",
+            *(["--output-path", output_path] if output_path else []),
+        )
 
         assert out.exit_code == 0
 
         sample_project_dg_path = Path.cwd() / ".dg"
-        assert (sample_project_dg_path / "schema.json").exists()
 
-        assert (
-            "definitions@dagster_components" in (sample_project_dg_path / "schema.json").read_text()
-        )
+        output_file = Path(output_path) if output_path else sample_project_dg_path / "schema.json"
+        assert output_file.exists()

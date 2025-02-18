@@ -127,9 +127,17 @@ _DEFAULT_SCHEMA_FOLDER_NAME = ".dg"
 
 @code_location_group.command(name="generate-component-schema", cls=DgClickCommand)
 @dg_global_options
+@click.option(
+    "--output-path",
+    "-o",
+    type=click.Path(exists=False, file_okay=True, dir_okay=False),
+    default=None,
+    help="The path to write the generated schema to. Defaults to the .dg folder nested in the code location root.",
+)
 @click.pass_context
 def generate_component_schema(
     context: click.Context,
+    output_path: Optional[str],
     **global_options: object,
 ) -> None:
     """Generates a JSON schema for the component types installed in the current code location."""
@@ -139,7 +147,7 @@ def generate_component_schema(
     schema_folder = dg_context.root_path / _DEFAULT_SCHEMA_FOLDER_NAME
     schema_folder.mkdir(exist_ok=True)
 
-    schema_path = schema_folder / "schema.json"
+    schema_path = Path(output_path) if output_path else (schema_folder / "schema.json")
     schema_path.write_text(json.dumps(all_components_schema_from_dg_context(dg_context), indent=2))
 
 
