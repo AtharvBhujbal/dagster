@@ -30,8 +30,8 @@ def test_configure_editor(editor: str) -> None:
 
         assert out.exit_code == 0
 
-        sample_project_vscode_path = Path.cwd() / ".vscode"
-        assert (sample_project_vscode_path / "schema.json").exists()
+        sample_project_dg_path = Path.cwd() / ".dg"
+        assert (sample_project_dg_path / "schema.json").exists()
 
         expected_vscode_plugin_folder_filepath = Path(extension_dir) / "dagster-components-schema"
         assert expected_vscode_plugin_folder_filepath.exists()
@@ -39,3 +39,20 @@ def test_configure_editor(editor: str) -> None:
             expected_vscode_plugin_folder_filepath / "dagster-components-schema.vsix"
         )
         assert expected_compiled_plugin_filepath.exists()
+
+
+def test_generate_component_schema() -> None:
+    with (
+        ProxyRunner.test() as runner,
+        isolated_example_code_location_foo_bar(runner, False),
+    ):
+        out = runner.invoke("code-location", "generate-component-schema")
+
+        assert out.exit_code == 0
+
+        sample_project_dg_path = Path.cwd() / ".dg"
+        assert (sample_project_dg_path / "schema.json").exists()
+
+        assert (
+            "definitions@dagster_components" in (sample_project_dg_path / "schema.json").read_text()
+        )

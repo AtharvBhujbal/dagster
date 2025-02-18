@@ -122,7 +122,25 @@ def code_location_list_command(context: click.Context, **global_options: object)
         click.echo(code_location)
 
 
-_DEFAULT_SCHEMA_FOLDER_NAME = ".vscode"
+_DEFAULT_SCHEMA_FOLDER_NAME = ".dg"
+
+
+@code_location_group.command(name="generate-component-schema", cls=DgClickCommand)
+@dg_global_options
+@click.pass_context
+def generate_component_schema(
+    context: click.Context,
+    **global_options: object,
+) -> None:
+    """Generates a JSON schema for the component types installed in the current code location."""
+    cli_config = normalize_cli_config(global_options, context)
+    dg_context = DgContext.for_code_location_environment(Path.cwd(), cli_config)
+
+    schema_folder = dg_context.root_path / _DEFAULT_SCHEMA_FOLDER_NAME
+    schema_folder.mkdir(exist_ok=True)
+
+    schema_path = schema_folder / "schema.json"
+    schema_path.write_text(json.dumps(all_components_schema_from_dg_context(dg_context), indent=2))
 
 
 @code_location_group.command(name="configure-editor", cls=DgClickCommand)
