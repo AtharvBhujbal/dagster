@@ -10,8 +10,8 @@ fivetran_workspace = FivetranWorkspace(
 
 all_fivetran_assets = build_fivetran_assets_definitions(
     workspace=fivetran_workspace,
-    connection_selector_fn=lambda connector: connector.id
-    in {"some_connection_id", "another_connection_id"},
+    connector_selector_fn=lambda connector: connector.id
+    in {"some_connector_id", "another_connector_id"},
 )
 
 defs = dg.Definitions(
