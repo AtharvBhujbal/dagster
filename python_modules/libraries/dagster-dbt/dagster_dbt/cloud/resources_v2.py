@@ -15,6 +15,8 @@ from dagster._annotations import preview
 from dagster._config.pythonic_config import ConfigurableResource
 from dagster._core.definitions.definitions_load_context import StateBackedDefinitionsLoader
 from dagster._model import DagsterModel
+from dagster._record import record
+from dagster._serdes import whitelist_for_serdes
 from dagster._utils.cached_method import cached_method
 from pydantic import Field
 from requests.exceptions import RequestException
