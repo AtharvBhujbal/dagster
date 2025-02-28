@@ -579,21 +579,27 @@ def create_toml_dict_node(
         if isinstance(key, str):
             if not isinstance(current, dict):
                 raise KeyError(f"Key '{key}' not found in path: {toml_path_to_str(path)}")
-            elif is_final_key or key not in current:
-                current[key] = value if is_final_key else _get_new_container_node(path[i + 1])
+            elif is_final_key:
+                current[key] = value
+            elif key not in current:
+                current[key] = _get_new_container_node(path[i + 1])
             current = current[key]
         elif isinstance(key, int):
             if not isinstance(current, list):
                 raise KeyError(f"Index '{key}' not found in path: {toml_path_to_str(path)}")
-            elif key >= 0 and key <= len(current):
-                new_node = value if is_final_key else _get_new_container_node(path[i + 1])
-                if key == len(current):
-                    current.append(new_node)
-                else:
-                    current[key] = new_node
+            is_key_in_range = key >= 0 and key < len(current)
+            is_append_key = key == len(current)
+            if is_final_key and is_key_in_range:
+                current[key] = value
+            elif is_final_key and is_append_key:
+                current.append(value)
+            elif is_key_in_range:
+                current = current[key]
+            elif is_append_key:
+                current.append(_get_new_container_node(path[i + 1]))
+                current = current[key]
             else:
                 raise KeyError(f"Key '{key}' not found in path: {toml_path_to_str(path)}")
-            current = current[key]
         else:
             raise TypeError(f"Expected key to be a string or integer, but got {type(key)}")
 

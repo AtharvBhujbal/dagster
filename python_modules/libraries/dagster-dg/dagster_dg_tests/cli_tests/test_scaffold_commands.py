@@ -94,10 +94,17 @@ def test_scaffold_project_inside_workspace_success(monkeypatch) -> None:
         assert Path("projects/foo-bar/foo_bar_tests").exists()
         assert Path("projects/foo-bar/pyproject.toml").exists()
 
-        # Check TOML content
+        # Check project TOML content
         toml = tomlkit.parse(Path("projects/foo-bar/pyproject.toml").read_text())
         assert get_toml_node(toml, ("tool", "dagster", "module_name"), str) == "foo_bar.definitions"
         assert get_toml_node(toml, ("tool", "dagster", "code_location_name"), str) == "foo-bar"
+
+        # Check workspace TOML content
+        toml = tomlkit.parse(Path("pyproject.toml").read_text())
+        assert (
+            get_toml_node(toml, ("tool", "dg", "workspace", "projects", 0, "path"), str)
+            == "projects/foo-bar"
+        )
 
         # Check venv created
         assert Path("projects/foo-bar/.venv").exists()
@@ -115,6 +122,17 @@ def test_scaffold_project_inside_workspace_success(monkeypatch) -> None:
             result = runner.invoke("list", "component-type", "--verbose")
             assert_runner_result(result)
             assert "CACHE [hit]" in result.output
+
+        # Create another project, make sure it's appended correctly to the workspace TOML
+        result = runner.invoke("scaffold", "project", "baz", "--use-editable-dagster", "--verbose")
+        assert_runner_result(result)
+
+        # Check workspace TOML content
+        toml = tomlkit.parse(Path("pyproject.toml").read_text())
+        assert (
+            get_toml_node(toml, ("tool", "dg", "workspace", "projects", 1, "path"), str)
+            == "projects/baz"
+        )
 
 
 def test_scaffold_project_outside_workspace_success(monkeypatch) -> None:

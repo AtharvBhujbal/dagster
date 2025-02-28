@@ -7,17 +7,24 @@ from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 import click
 import psutil
+import tomlkit
 import yaml
 
 from dagster_dg.cli.global_options import dg_global_options
-from dagster_dg.config import normalize_cli_config
+from dagster_dg.config import DgWorkspaceProjectSpec, normalize_cli_config
 from dagster_dg.context import DgContext
 from dagster_dg.error import DgError
-from dagster_dg.utils import DgClickCommand, exit_with_error, pushd
+from dagster_dg.utils import (
+    DgClickCommand,
+    exit_with_error,
+    get_toml_node,
+    get_venv_executable,
+    pushd,
+)
 
 T = TypeVar("T")
 
@@ -167,20 +174,27 @@ def dev_command(
 def temp_workspace_file(dg_context: DgContext) -> Iterator[str]:
     with NamedTemporaryFile(mode="w+", delete=True) as temp_workspace_file:
         entries = []
-        for project_name in dg_context.get_project_names():
-            project_root = dg_context.get_project_path(project_name)
-            project_context: DgContext = dg_context.with_root_path(project_root)
-            entry = {
-                "working_directory": str(dg_context.workspace_root_path),
-                "relative_path": str(project_context.definitions_path),
-                "location_name": project_context.project_name,
-            }
-            if project_context.use_dg_managed_environment:
-                entry["executable_path"] = str(project_context.project_python_executable)
-            entries.append({"python_file": entry})
-        yaml.dump({"load_from": entries}, temp_workspace_file)
+        for spec in dg_context.get_project_specs():
+            entries.append(_project_spec_to_workspace_entry(dg_context, spec))
+        content = {"load_from": entries}
+        yaml.dump(content, temp_workspace_file)
         temp_workspace_file.flush()
         yield temp_workspace_file.name
+
+
+def _project_spec_to_workspace_entry(
+    dg_context: DgContext, spec: DgWorkspaceProjectSpec
+) -> dict[str, Any]:
+    with pushd(spec.path):
+        toml = tomlkit.parse(Path("pyproject.toml").read_text())
+        module_name = get_toml_node(toml, ("tool", "dagster", "module_name"), str)
+        entry = {
+            "location_name": spec.code_location_name or dg_context.project_name,
+            "working_directory": str(dg_context.workspace_root_path / spec.path),
+            "executable_path": str(get_venv_executable(Path(".venv"))),
+            "module_name": module_name,
+        }
+    return {"python_module": entry}
 
 
 def format_forwarded_option(option: str, value: object) -> list[str]:

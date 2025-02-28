@@ -15,6 +15,7 @@ from dagster_dg.component import RemoteComponentRegistry
 from dagster_dg.config import (
     DgConfig,
     DgRawCliConfig,
+    DgWorkspaceProjectSpec,
     discover_config_file,
     load_dg_root_file_config,
     load_dg_workspace_file_config,
@@ -47,10 +48,10 @@ _WORKSPACE_PROJECTS_DIR: Final = "projects"
 
 class DgContext:
     root_path: Path
-    workspace_root_path: Optional[Path]
     config: DgConfig
     cli_opts: Optional[DgRawCliConfig] = None
     _cache: Optional[DgCache] = None
+    _workspace_root_path: Optional[Path]
 
     # We need to preserve CLI options for the context to be able to derive new contexts, because
     # cli_options override everything else. If we didn't maintain them we wouldn't be able to tell
@@ -64,7 +65,7 @@ class DgContext:
     ):
         self.config = config
         self.root_path = root_path
-        self.workspace_root_path = workspace_root_path
+        self._workspace_root_path = workspace_root_path
         self.cli_opts = cli_opts
         if config.cli.disable_cache or not self.use_dg_managed_environment:
             self._cache = None
@@ -227,10 +228,16 @@ class DgContext:
 
     @property
     def is_workspace(self) -> bool:
-        return self.workspace_root_path is not None
+        return self._workspace_root_path is not None
+
+    @property
+    def workspace_root_path(self) -> Path:
+        if not self._workspace_root_path:
+            raise DgError("`workspace_root_path` is only available in a workspace context")
+        return self._workspace_root_path
 
     def get_workspace_project_path(self, name: str) -> Path:
-        if not self.workspace_root_path:
+        if not self.is_workspace:
             raise DgError("`get_workspace_project_path` is only available in a workspace context")
         return self.workspace_root_path / _WORKSPACE_PROJECTS_DIR / name
 
@@ -242,12 +249,19 @@ class DgContext:
 
     @property
     def project_root_path(self) -> Path:
-        if not self.workspace_root_path:
+        if not self.is_workspace:
             raise DgError("`project_root_path` is only available in a workspace context")
         return self.workspace_root_path / _WORKSPACE_PROJECTS_DIR
 
     def get_project_names(self) -> Iterable[str]:
-        return [loc.name for loc in sorted(self.project_root_path.iterdir())]
+        if not self.config.workspace:
+            raise DgError("`get_project_names` is only available in a workspace context")
+        return [spec.path.name for spec in self.get_project_specs()]
+
+    def get_project_specs(self) -> list[DgWorkspaceProjectSpec]:
+        if not self.config.workspace:
+            raise DgError("`get_project_specs` is only available in a workspace context")
+        return self.config.workspace.projects
 
     def get_project_path(self, name: str) -> Path:
         return self.project_root_path / name
