@@ -7,13 +7,12 @@ from dagster import Failure
 from dagster._annotations import preview
 from dagster._config.pythonic_config import ConfigurableResource
 from dagster._model import DagsterModel
-from dagster._record import record
-from dagster._serdes import whitelist_for_serdes
 from dagster._utils.cached_method import cached_method
 from pydantic import Field
 from requests.exceptions import RequestException
 
 from dagster_dbt.cloud.dbt_cloud_job_run import DbtCloudJobRun
+from dagster_dbt.cloud.types import DbtCloudWorkspaceData
 
 LIST_JOBS_INDIVIDUAL_REQUEST_LIMIT = 100
 DAGSTER_ADHOC_PREFIX = "DAGSTER_ADHOC_JOB__"
@@ -179,19 +178,6 @@ class DbtCloudClient(DagsterModel):
 
     def get_run_manifest_json(self, job_run_id: int) -> Mapping[str, Any]:
         return self.get_run_artifact(job_run_id=job_run_id, path="manifest.json")
-
-
-@preview
-@whitelist_for_serdes
-@record
-class DbtCloudWorkspaceData:
-    project_id: int
-    environment_id: int
-    # The ID of the ad hoc dbt Cloud job created by Dagster.
-    # This job is used to parse the dbt Cloud project.
-    # This job is also used to kick off cli invocation if no job ID is specified by users.
-    job_id: int
-    manifest: Mapping[str, Any]
 
 
 @preview
